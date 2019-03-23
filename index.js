@@ -3,7 +3,7 @@ var passport = require('passport');
 var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 var environment = require('./environments')
 var PropertiesReader = require('properties-reader')
-
+var axios = require('axios')
 
 const PORT = process.env.PORT || 8080;
 
@@ -12,6 +12,8 @@ clientID = properties.get('main.clientID')
 clientSecret = properties.get('main.clientSecret')
 callbackURL = properties.get('main.callbackURL')
 
+var gblAccessToken = ""
+
 passport.use(new GoogleStrategy({
     clientID: clientID,
     clientSecret: clientSecret,
@@ -19,6 +21,8 @@ passport.use(new GoogleStrategy({
   },
   function(accessToken, refreshToken, profile, done) {
     if (profile) {
+	console.log("gblAccessToken: " + gblAccessToken)
+	gblAccessToken = accessToken 
         user = profile;
         return done(null, user);
     } else {
@@ -38,14 +42,27 @@ passport.deserializeUser(function(user, done) {
 var app = express()
 app.use(passport.initialize())
 app.use(passport.session())
-
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private')
+  next()
+})
 
 app.get('/', (req, res) => {
 	res.status(200).send('<a href="/auth/google">Sign In with Google</a>')
 })
 
 app.get('/private', (req, res) => {
-	res.status(200).send('Private Page')
+	axios.get('https://sheets.googleapis.com/v4/spreadsheets/1y_8e_-0fApdb63KRYWqui7StVMb9OSGMs5jGU713AIE?includeGridData=false', {
+  		headers: {'Authorization': 'Bearer '+gblAccessToken, 'Accept': 'application/json'}
+	})
+  		.then(function (response) {
+			console.log("*** response: " + JSON.stringify(response.data))
+			res.status(200).send('Private Page<br />Access Token: ' + gblAccessToken + '<br />Message: ' + JSON.stringify(response.data))
+  		})
+  		.catch(function (error) {
+    			console.log(error);
+			res.status(200).send('Private Page<br />Access Token: ' + gblAccessToken + '<br />Message: ' + error)
+  		});
 })
 
 app.get('/error', (req, res) => {
@@ -53,7 +70,14 @@ app.get('/error', (req, res) => {
 })
 
 app.get('/auth/google',
-  passport.authenticate('google', { scope: ['https://www.googleapis.com/auth/plus.login'] })
+  passport.authenticate('google', { scope: [
+	'https://www.googleapis.com/auth/plus.login',
+  	'https://www.googleapis.com/auth/drive',
+	'https://www.googleapis.com/auth/drive.file',
+	'https://www.googleapis.com/auth/drive.readonly',
+	'https://www.googleapis.com/auth/spreadsheets',
+	'https://www.googleapis.com/auth/spreadsheets.readonly'
+  	] })
 )
 
 app.get('/auth/google/callback', 
