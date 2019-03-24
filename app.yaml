@@ -1,1 +1,4 @@
 runtime: nodejs10
+
+env_variables:
+        GOOGLE_APPLICATION_CREDENTIALS: googleoauthapp-serviceacc.key 
