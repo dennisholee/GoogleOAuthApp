@@ -1,4 +1,8 @@
-# Logs
+# Exclude application sensitive data
+env/test.properties
+# Exclude backup file
+*.[0-9]*
+
 logs
 *.log
 npm-debug.log*
