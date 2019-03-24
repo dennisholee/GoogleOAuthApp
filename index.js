@@ -1,9 +1,13 @@
 var express = require('express')
 var passport = require('passport');
+var refresh = require('passport-oauth2-refresh')
 var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
 var environment = require('./environments')
 var PropertiesReader = require('properties-reader')
 var axios = require('axios')
+
+//var gdatastore = require('@google-cloud/datastore');
+var {Datastore} = require('@google-cloud/datastore')
 
 const PORT = process.env.PORT || 8080;
 
@@ -12,9 +16,11 @@ clientID = properties.get('main.clientID')
 clientSecret = properties.get('main.clientSecret')
 callbackURL = properties.get('main.callbackURL')
 
+var projectName = properties.get('gcp.projectName')
+
 var gblAccessToken = ""
 
-passport.use(new GoogleStrategy({
+var strategy = new GoogleStrategy({
     clientID: clientID,
     clientSecret: clientSecret,
     callbackURL: callbackURL
@@ -24,20 +30,28 @@ passport.use(new GoogleStrategy({
 	console.log("gblAccessToken: " + gblAccessToken)
 	gblAccessToken = accessToken 
         user = profile;
-        return done(null, user);
+
+	// Save refresh token
+	console.log("Preparing to save token to datastore [id=" + profile.id + ", token=" + refreshToken + "]")	
+	create(profile, refreshToken)
+
+	return done(null, user);
     } else {
         return done(null, false);
     }
   }
-));
+)
+
+passport.use(strategy)
+refresh.use(strategy)
 
 passport.serializeUser(function(user, done) {
-  done(null, user);
-});
+	done(null, user);
+})
 
 passport.deserializeUser(function(user, done) {
   done(null, user);
-});
+})
 
 var app = express()
 app.use(passport.initialize())
@@ -99,7 +113,9 @@ app.get('/auth/google',
 	'https://www.googleapis.com/auth/drive.metadata.readonly',
 	'https://www.googleapis.com/auth/drive.photos.readonly',
 	'https://www.googleapis.com/auth/drive.readonly'
-  	] })
+  	],
+  	accessType: 'offline', 
+	approvalPrompt: 'force' })
 )
 
 app.get('/auth/google/callback', 
@@ -109,3 +125,27 @@ app.get('/auth/google/callback',
 });
 
 app.listen(PORT, () => { console.log(`Listening on port ${PORT}`) })
+
+/*
+ * Setup GCP Datastore
+ */ 
+var datastore = new Datastore({
+    projectId: projectName,
+  });
+
+// Save refresh token to datastore
+const create = (profile, token) => {
+  var entity = {
+      key: datastore.key('Refresh'),
+      data: {
+        id: profile.id,
+        token: token
+      }
+  }
+
+  console.log(`entity: ${JSON.stringify(entity)}`)
+  datastore.save(entity, (err) => {
+	  console.log("Datastore save [error=" + err + "]")
+  })
+}
+

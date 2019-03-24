@@ -1,0 +1,7 @@
+indexes:
+- kind: Refresh
+  properties:
+  - name: id
+    direction: asc
+  - name: token
+    direction: asc
