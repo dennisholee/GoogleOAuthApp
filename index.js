@@ -65,6 +65,18 @@ app.get('/private', (req, res) => {
   		});
 })
 
+app.get('/private/doc/', (req, res) => {
+	axios.get('https://www.googleapis.com/drive/v2/files', {
+		headers: { 'Authorization' : 'Bearer ' + gblAccessToken, 'Accept': 'application/json'}
+	}).then(response => {
+		console.log("*** response: " + JSON.stringify(response.data))
+		res.status(200).send('Private Docs <br /> ' + response.data)
+	}).catch(err => {
+		console.log(err)
+		res.status(200).send('Private Docs <br /> ' + err)
+	})
+})
+
 app.get('/error', (req, res) => {
 	res.status(200).send('Error Page')
 })
@@ -72,11 +84,21 @@ app.get('/error', (req, res) => {
 app.get('/auth/google',
   passport.authenticate('google', { scope: [
 	'https://www.googleapis.com/auth/plus.login',
+	// Spreadsheet permissions
   	'https://www.googleapis.com/auth/drive',
 	'https://www.googleapis.com/auth/drive.file',
 	'https://www.googleapis.com/auth/drive.readonly',
 	'https://www.googleapis.com/auth/spreadsheets',
-	'https://www.googleapis.com/auth/spreadsheets.readonly'
+	'https://www.googleapis.com/auth/spreadsheets.readonly',
+	// Drive permissions
+	'https://www.googleapis.com/auth/drive',
+	'https://www.googleapis.com/auth/drive.appdata',
+	'https://www.googleapis.com/auth/drive.apps.readonly',
+	'https://www.googleapis.com/auth/drive.file',
+	'https://www.googleapis.com/auth/drive.metadata',
+	'https://www.googleapis.com/auth/drive.metadata.readonly',
+	'https://www.googleapis.com/auth/drive.photos.readonly',
+	'https://www.googleapis.com/auth/drive.readonly'
   	] })
 )
 
