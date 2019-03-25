@@ -6,18 +6,24 @@ var environment = require('./environments')
 var PropertiesReader = require('properties-reader')
 var axios = require('axios')
 
-//var gdatastore = require('@google-cloud/datastore');
 var {Datastore} = require('@google-cloud/datastore')
 
 const PORT = process.env.PORT || 8080;
 
 var properties = new PropertiesReader(environment)
-clientID = properties.get('main.clientID')
-clientSecret = properties.get('main.clientSecret')
-callbackURL = properties.get('main.callbackURL')
+var clientID = properties.get('main.clientID')
+var clientSecret = properties.get('main.clientSecret')
+var callbackURL = properties.get('main.callbackURL')
+
+// TODO: Persist token to data store
+var googleRefreshToken = properties.get('google.refreshToken')
+
+// TODO: Get spreadsheet ID from google drive list
+var spreadsheetId = properties.get('google.spreadsheetId')
 
 var projectName = properties.get('gcp.projectName')
 
+// TODO: Bind accessToken to user session
 var gblAccessToken = ""
 
 var strategy = new GoogleStrategy({
@@ -66,17 +72,26 @@ app.get('/', (req, res) => {
 })
 
 app.get('/private', (req, res) => {
-	axios.get('https://sheets.googleapis.com/v4/spreadsheets/1y_8e_-0fApdb63KRYWqui7StVMb9OSGMs5jGU713AIE?includeGridData=false', {
+	axios.get(`https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?includeGridData=false`, {
   		headers: {'Authorization': 'Bearer '+gblAccessToken, 'Accept': 'application/json'}
-	})
-  		.then(function (response) {
+	}).then(function (response) {
+
+		if(response.status === 403) {
+			res.status(200).send('Private Page 403<br />Access Token: ' + gblAccessToken + '<br />Message: Oh no! Caught 402 Error')
+		} else {
 			console.log("*** response: " + JSON.stringify(response.data))
 			res.status(200).send('Private Page<br />Access Token: ' + gblAccessToken + '<br />Message: ' + JSON.stringify(response.data))
+		}
+	}).catch(function (error) {
+    		console.log("*** error: " + error);
+		//id = get('110836914681755155923')
+
+		// Add condition to check for error to be 403. At the moment assumption is made.
+		// Get accessToken via the refresh token
+		refresh.requestNewAccessToken('google', googleRefreshToken, function(err, accessToken, googleRefreshToken) {
+			listGoogleDrive(accessToken, data => showPage(data, res))
   		})
-  		.catch(function (error) {
-    			console.log(error);
-			res.status(200).send('Private Page<br />Access Token: ' + gblAccessToken + '<br />Message: ' + error)
-  		});
+	})
 })
 
 app.get('/private/doc/', (req, res) => {
@@ -90,6 +105,23 @@ app.get('/private/doc/', (req, res) => {
 		res.status(200).send('Private Docs <br /> ' + err)
 	})
 })
+
+const showPage = (data, res) => {
+	console.log(`*** showPage: ${JSON.stringify(data)}`)
+	res.status(200).send(`Private Docs <br /> ${JSON.stringify(data)}`)
+}
+
+const listGoogleDrive = (accessToken, callback) => {
+	axios.get('https://www.googleapis.com/drive/v2/files', {
+		headers: { 'Authorization' : 'Bearer ' + accessToken, 'Accept': 'application/json'}
+	}).then(response => {
+		console.log("*** response: " + JSON.stringify(response.data))
+		callback(response.data)
+	}).catch(err => {
+		console.log(err)
+		return err
+	})
+}
 
 app.get('/error', (req, res) => {
 	res.status(200).send('Error Page')
@@ -121,7 +153,7 @@ app.get('/auth/google',
 app.get('/auth/google/callback', 
   passport.authenticate('google', { failureRedirect: '/error' }),
   function(req, res) {
-    res.redirect('/private');
+    res.redirect('/private')
 });
 
 app.listen(PORT, () => { console.log(`Listening on port ${PORT}`) })
@@ -136,7 +168,7 @@ var datastore = new Datastore({
 // Save refresh token to datastore
 const create = (profile, token) => {
   var entity = {
-      key: datastore.key('Refresh'),
+      key: datastore.key('Refresh', profile.id),
       data: {
         id: profile.id,
         token: token
@@ -149,3 +181,15 @@ const create = (profile, token) => {
   })
 }
 
+//const get = uid => {
+//	const key = datastore.key(['Refresh', uid]);
+//	console.log("Search by key [key=" + key + "]")
+//	
+//	datastore.get(key)
+//  	.then(results => {
+//    		console.log(results)
+//		return results
+//  	}).catch(err => { 
+//		console.error('ERROR:', err)
+//	})
+//}
