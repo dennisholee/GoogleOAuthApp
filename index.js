@@ -1,4 +1,5 @@
 var express = require('express')
+var bodyParser = require('body-parser')
 var passport = require('passport');
 var refresh = require('passport-oauth2-refresh')
 var GoogleStrategy = require('passport-google-oauth').OAuth2Strategy;
@@ -7,6 +8,8 @@ var PropertiesReader = require('properties-reader')
 var axios = require('axios')
 
 var {Datastore} = require('@google-cloud/datastore')
+
+var tokenmanager = require('./tokenmanager.js')
 
 const PORT = process.env.PORT || 8080;
 
@@ -60,12 +63,14 @@ passport.deserializeUser(function(user, done) {
 })
 
 var app = express()
+app.use(bodyParser.json())
 app.use(passport.initialize())
 app.use(passport.session())
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private')
   next()
 })
+app.use('/tokenstore', tokenmanager);
 
 app.get('/', (req, res) => {
 	res.status(200).send('<a href="/auth/google">Sign In with Google</a>')
