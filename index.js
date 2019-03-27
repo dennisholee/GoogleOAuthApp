@@ -42,6 +42,10 @@ var strategy = new GoogleStrategy({
 
 	// Save refresh token
 	console.log("Preparing to save token to datastore [id=" + profile.id + ", token=" + refreshToken + "]")	
+	axios.post('/tokenstore/token', { 'id' : profile.id, 'token' : refreshToken })
+	    .then(res => {
+	    }).catch(err => {
+	    })
 	create(profile, refreshToken)
 
 	return done(null, user);

@@ -6,9 +6,10 @@ var PropertiesReader = require('properties-reader')
 var properties = new PropertiesReader(environment)
 var projectName = properties.get('gcp.projectName')
 
-var datastore = new Datastore({
-    projectId: projectName,
-});
+var DaoStrategy = require('./dao')
+var gcpdatastore = require('./gcpdatastore.js')
+
+var dao = new DaoStrategy(new gcpdatastore(projectName))
 
 
 router.get("/", (req, res) => {
@@ -48,17 +49,8 @@ const listToken = (callback) => {
 
 const findById = (id, callback) => {
 	console.log(`Request find by id [id=${id}]`)
-	key = datastore.key(['Refresh', id])
-	datastore.get(key)
-	.then(res => {
-		console.log(`{ 'Refresh' : '${JSON.stringify(res)}' }`)
-		callback(`{ 'Refresh' : '${JSON.stringify(res)}' }`)
-	}).catch(err => {
-		console.log(`{ 'err' : '${JSON.stringify(err)}' }`)
-		callback(`{ 'Refresh' : '${JSON.stringify(err)}' }`)
-	})
+	dao.findById(id, callback)
 }
-
 
 const create = (entity, callback) => {
 	var entity = {
