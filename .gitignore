@@ -2,6 +2,8 @@
 env/test.properties
 # Exclude backup file
 *.[0-9]*
+# Exclude key files
+*-serviceacc.key
 
 logs
 *.log
