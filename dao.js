@@ -1,23 +1,24 @@
-var cloudstore = require('./gcpdatastore.js')
-
 /**
  * @constructor
  */
 var DaoStrategy = function(algo) {
-	this.algo = algo
+    this.algo = algo
 }
 
 DaoStrategy.prototype.test = function(done) {
-	console.log('prototype.test')
-	this.algo.test()
+    this.algo.test(done)
 }
 
 DaoStrategy.prototype.create = function(entity, done) {
+    this.algo.create(entity, done)
+}
+
+DaoStrategy.prototype.findAll = function(done) {
+    this.algo.findAll(done)
 }
 
 DaoStrategy.prototype.findById = function(id, done) {
-	console.log('prototype.findById')
-	this.algo.findById(id, done)
+    this.algo.findById(id, done)
 }
 
 module.exports  = DaoStrategy
